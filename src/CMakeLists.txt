@@ -3,7 +3,7 @@ set(ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/..")
 set(SOURCE_DIR "${ROOT_DIR}/src")
 file(GLOB_RECURSE SOURCE_FILES "${SOURCE_DIR}/*.cpp" "${SOURCE_DIR}/*.h" "${SOURCE_DIR}/*.hpp")	
 
-# 对 SourceFile 变量里面的所有文件分类(保留资源管理器的目录结构)
+# Group source files in IDE
 foreach(fileItem ${SOURCE_FILES})       
     # Get the directory of the source file
     get_filename_component(PARENT_DIR "${fileItem}" DIRECTORY)
@@ -33,6 +33,10 @@ configure_file(
 	@ONLY
 )
 
+# Find CommonLibSSE from vcpkg
+find_package(CommonLibSSE CONFIG REQUIRED)
+
+# Setup plugin
 add_library(
 	"${PROJECT_NAME}"
 	SHARED
@@ -83,12 +87,10 @@ target_include_directories(
 		"${SOURCE_DIR}"
 )
 
-set(SKSE_SUPPORT_XBYAK ON)
-
-add_subdirectory("$ENV{CommonLibSSEPath_NG}" CommonLibSSE EXCLUDE_FROM_ALL)
-
+# Find xbyak package
 find_package(xbyak REQUIRED CONFIG)
 
+# Link dependencies
 target_link_libraries(
 	"${PROJECT_NAME}"
 	PRIVATE
@@ -102,6 +104,36 @@ target_precompile_headers(
 		"${SOURCE_DIR}/PCH.h"
 )
 
+# Install and copy rules
+if(DEFINED OUTPUT_FOLDER)
+    # If you specify an <OUTPUT_FOLDER> (including via environment variables)
+    # then we'll copy your mod files into Skyrim or a mod manager for you!
+
+    # Copy the SKSE plugin .dll files into the SKSE/Plugins/ folder
+    set(DLL_FOLDER "${OUTPUT_FOLDER}/SKSE/Plugins")
+
+    message(STATUS "SKSE plugin output folder: ${DLL_FOLDER}")
+
+    add_custom_command(
+        TARGET "${PROJECT_NAME}"
+        POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "${DLL_FOLDER}"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_FILE_NAME:${PROJECT_NAME}>"
+        VERBATIM
+    )
+
+    # If you perform a "Debug" build, also copy .pdb file (for debug symbols)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_custom_command(
+            TARGET "${PROJECT_NAME}"
+            POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_PDB_FILE:${PROJECT_NAME}>" "${DLL_FOLDER}/$<TARGET_PDB_FILE_NAME:${PROJECT_NAME}>"
+            VERBATIM
+        )
+    endif()
+endif()
+
+# Keep the old install targets for compatibility
 install(
 	FILES
 		"$<TARGET_FILE:${PROJECT_NAME}>"
@@ -115,13 +147,3 @@ install(
 	DESTINATION "/"
 	COMPONENT "pdbs"
 )
-
-if("${COPY_OUTPUT}")
-	add_custom_command(
-		TARGET "${PROJECT_NAME}"
-		POST_BUILD
-		COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:${PROJECT_NAME}>" "${CompiledPluginsPath}/SKSE/Plugins/"
-		COMMAND "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_PDB_FILE:${PROJECT_NAME}>" "${CompiledPluginsPath}/SKSE/Plugins/"
-		VERBATIM
-	)
-endif()

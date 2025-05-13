@@ -11,6 +11,16 @@ if("${PROJECT_SOURCE_DIR}" STREQUAL "${PROJECT_BINARY_DIR}")
 	message(FATAL_ERROR "in-source builds are not allowed")
 endif()
 
+# Set up output directories
+if(DEFINED ENV{SKYRIM_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_FOLDER}/Data")
+    set(OUTPUT_FOLDER "$ENV{SKYRIM_FOLDER}/Data")
+endif()
+
+if(DEFINED ENV{SKYRIM_MODS_FOLDER} AND IS_DIRECTORY "$ENV{SKYRIM_MODS_FOLDER}")
+    set(OUTPUT_FOLDER "$ENV{SKYRIM_MODS_FOLDER}/${PROJECT_NAME}")
+endif()
+
+# For backward compatibility
 macro(set_from_environment VARIABLE)
 	if(NOT DEFINED ${VARIABLE} AND DEFINED ENV{${VARIABLE}})
 		set(${VARIABLE} $ENV{${VARIABLE}})
@@ -18,12 +28,8 @@ macro(set_from_environment VARIABLE)
 endmacro()
 
 set_from_environment(CompiledPluginsPath)
-if(NOT DEFINED CompiledPluginsPath)
-	message(FATAL_ERROR "CompiledPluginsPath is not set")
-endif()
-
-if (NOT DEFINED ENV{CommonLibSSEPath_NG})
-	message(FATAL_ERROR "CommonLibSSEPath_NG is not set")
+if(DEFINED CompiledPluginsPath)
+    set(OUTPUT_FOLDER "${CompiledPluginsPath}")
 endif()
 
 option(COPY_OUTPUT "Copy the output of build operations to the game directory" ON)
